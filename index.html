@@ -75,11 +75,37 @@
         });
 
         function downloadImage() {
-            const link = document.createElement('a');
-            link.download = 'my-photo.png';
-            link.href = modalImg.src;
-            link.click();
-        }
+    const link = document.createElement('a');
+    
+    // Create a temporary canvas to add the watermark
+    const watermarkedCanvas = document.createElement('canvas');
+    watermarkedCanvas.width = canvas.width;
+    watermarkedCanvas.height = canvas.height;
+    const ctx = watermarkedCanvas.getContext('2d');
+
+    // Load the image into the new canvas
+    const imgObj = new Image();
+    imgObj.src = modalImg.src;
+    imgObj.onload = () => {
+        // Draw the photo
+        ctx.drawImage(imgObj, 0, 0);
+        
+        // Style the watermark
+        ctx.fillStyle = "rgba(255, 255, 255, 0.7)"; // White, slightly transparent
+        ctx.font = "40px Arial";
+        ctx.textAlign = "right";
+        
+        // Draw the URL text
+        ctx.fillText("https://waranthornay.github.io/OnlineCamera/", 
+                     watermarkedCanvas.width - 20, 
+                     watermarkedCanvas.height - 30);
+        
+        // Trigger the download
+        link.download = 'my-photo.png';
+        link.href = watermarkedCanvas.toDataURL('image/png');
+        link.click();
+    };
+}
 
         initCamera();
     </script>

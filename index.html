@@ -2,39 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Simple Camera App</title>
+    <title>Camera Gallery App</title>
     <style>
-        body { text-align: center; font-family: sans-serif; }
-        video, canvas { width: 100%; max-width: 500px; display: block; margin: 10px auto; border: 2px solid #333; }
+        body { text-align: center; font-family: sans-serif; padding: 20px; }
+        video { width: 100%; max-width: 500px; display: block; margin: 10px auto; border: 2px solid #333; }
+        #gallery { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; padding: 10px; border-top: 2px solid #ccc; }
+        .gallery-item { width: 100px; height: 75px; object-fit: cover; border: 1px solid #000; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2>Camera Interface</h2>
+    <h2>Live Camera</h2>
     <video id="video" autoplay playsinline></video>
     <button id="snap">Take Picture</button>
-    <canvas id="canvas" width="640" height="480"></canvas>
+    
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+
+    <h3>Gallery</h3>
+    <div id="gallery"></div>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const snap = document.getElementById('snap');
+        const gallery = document.getElementById('gallery');
 
-        // Access the camera
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
-            } catch (err) {
-                console.error("Error accessing camera: ", err);
-                alert("Could not access camera. Please ensure permissions are granted.");
-            }
+            } catch (err) { alert("Camera access denied."); }
         }
 
-        // Capture the frame
         snap.addEventListener('click', () => {
+            // Draw current video frame to canvas
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to image URL
+            const imageData = canvas.toDataURL('image/png');
+            
+            // Create a new image element and add to gallery
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.className = 'gallery-item';
+            gallery.appendChild(img);
         });
 
         initCamera();

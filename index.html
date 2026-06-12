@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Camera App</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; }
+        video, canvas { width: 100%; max-width: 500px; display: block; margin: 10px auto; border: 2px solid #333; }
+    </style>
+</head>
+<body>
+
+    <h2>Camera Interface</h2>
+    <video id="video" autoplay playsinline></video>
+    <button id="snap">Take Picture</button>
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const snap = document.getElementById('snap');
+
+        // Access the camera
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                alert("Could not access camera. Please ensure permissions are granted.");
+            }
+        }
+
+        // Capture the frame
+        snap.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        });
+
+        initCamera();
+    </script>
+</body>
+</html>

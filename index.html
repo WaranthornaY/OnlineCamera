@@ -7,19 +7,20 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
 
     <style>
         body { margin: 0; padding: 20px; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; color: white; }
-        #video-container { width: 100%; max-width: 800px; }
+        #video-container { width: 100%; max-width: 800px; position: relative; }
         video { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 4px solid #444; border-radius: 12px; background: #000; }
-        .controls { margin: 20px 0; display: flex; gap: 20px; align-items: center; }
-        button { padding: 12px 24px; cursor: pointer; background: #e63946; color: white; border: none; border-radius: 50px; font-weight: bold; }
+        .controls { margin: 20px 0; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 50px; font-weight: bold; }
+        #snap { background: #e63946; color: white; }
+        #face-toggle { background: #f1fa8c; color: #000; }
         #gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; margin-top: 20px; }
         .gallery-item { width: 120px; height: 90px; object-fit: cover; border: 2px solid #555; cursor: pointer; border-radius: 4px; }
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
         #modal img { max-width: 90%; max-height: 70%; border: 4px solid white; }
-        .modal-btn { margin-top: 20px; background: #457b9d; }
+        .modal-btn { margin-top: 20px; background: #457b9d; color: white; }
     </style>
 </head>
 <body>
@@ -35,10 +36,12 @@
         </div>
         <div class="controls">
             <button id="snap">CAPTURE</button>
+            <button id="face-toggle" onclick="toggleFaceMode()">MODE: FULL</button>
             <label>Brightness: <input type="range" id="brightness" min="50" max="150" value="100"></label>
+            <button onclick="auth.signOut()" style="background:#555; color:white;">Logout</button>
         </div>
         <canvas id="canvas" width="1920" height="1080" style="display:none;"></canvas>
-        <h3>Gallery</h3>
+        <h3>Session Gallery (Temporary)</h3>
         <div id="gallery"></div>
     </div>
 
@@ -49,24 +52,23 @@
     </div>
 
     <script>
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAkaCtuRL8KTPxZMhXytlQydWswKJu_cjo",
             authDomain: "cameraapp-d9059.firebaseapp.com",
             projectId: "cameraapp-d9059",
             storageBucket: "cameraapp-d9059.firebasestorage.app",
             messagingSenderId: "262503093138",
-            appId: "1:262503093138:web:bdd21d41c64724c085674b",
-            measurementId: "G-JNFYLDES0F"
+            appId: "1:262503093138:web:bdd21d41c64724c085674b"
         };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
-        // UI Logic
         const video = document.getElementById('video'), canvas = document.getElementById('canvas');
         const snap = document.getElementById('snap'), gallery = document.getElementById('gallery');
         const modal = document.getElementById('modal'), modalImg = document.getElementById('modal-img');
-        const brightness = document.getElementById('brightness');
+        const brightness = document.getElementById('brightness'), faceBtn = document.getElementById('face-toggle');
+        
+        let faceMode = false;
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -76,8 +78,10 @@
             }
         });
 
-        function loginWithGoogle() {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        function loginWithGoogle() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+        function toggleFaceMode() {
+            faceMode = !faceMode;
+            faceBtn.innerText = faceMode ? "MODE: FACE ONLY" : "MODE: FULL";
         }
 
         async function initCamera() {
@@ -90,7 +94,16 @@
         snap.addEventListener('click', () => {
             const ctx = canvas.getContext('2d');
             ctx.filter = video.style.filter;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            if (faceMode) {
+                const size = 600;
+                const x = (canvas.width - size) / 2;
+                const y = (canvas.height - size) / 2;
+                ctx.drawImage(video, x, y, size, size, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+
             const img = document.createElement('img');
             img.src = canvas.toDataURL('image/png');
             img.className = 'gallery-item';
@@ -100,16 +113,16 @@
 
         function downloadImage() {
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            tempCanvas.width = 1920; tempCanvas.height = 1080;
             const ctx = tempCanvas.getContext('2d');
             const imgObj = new Image();
             imgObj.src = modalImg.src;
             imgObj.onload = () => {
                 ctx.drawImage(imgObj, 0, 0);
                 ctx.fillStyle = "white"; ctx.font = "40px Arial"; ctx.textAlign = "right";
-                ctx.fillText("https://waranthornay.github.io/OnlineCamera/", tempCanvas.width - 20, tempCanvas.height - 30);
+                ctx.fillText("https://waranthornay.github.io/OnlineCamera/", 1910, 1050);
                 const link = document.createElement('a');
-                link.download = 'photo-credit.png';
+                link.download = 'photo-privacy-protected.png';
                 link.href = tempCanvas.toDataURL('image/png');
                 link.click();
             };

@@ -2,116 +2,82 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pro Camera: Smart Face Snap</title>
-    <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-  import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAkaCtuRL8KTPxZMhXytlQydWswKJu_cjo",
-    authDomain: "cameraapp-d9059.firebaseapp.com",
-    projectId: "cameraapp-d9059",
-    storageBucket: "cameraapp-d9059.firebasestorage.app",
-    messagingSenderId: "262503093138",
-    appId: "1:262503093138:web:bdd21d41c64724c085674b",
-    measurementId: "G-JNFYLDES0F"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  // Export these to the global window so your other functions can see them
-  window.auth = auth;
-  window.firebase = { auth: () => auth }; // Helper for your existing functions
-</script>
-
+    <title>Pro Auto-Face Camera</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
     <style>
-        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }
-        #video-container { position: relative; width: 100%; max-width: 800px; }
-        #video, #overlay { width: 100%; border-radius: 12px; }
-        #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-        .controls { margin-top: 20px; }
-        .gallery-item { width: 120px; margin: 5px; cursor: pointer; }
+        body { margin: 0; padding: 20px; font-family: sans-serif; background-color: #121212; color: white; display: flex; flex-direction: column; align-items: center; }
+        #video-container { position: relative; width: 100%; max-width: 600px; }
+        video, #output-canvas { width: 100%; border-radius: 12px; border: 4px solid #333; }
+        .controls { margin: 20px 0; display: flex; gap: 10px; }
+        button { padding: 15px 25px; cursor: pointer; border: none; border-radius: 50px; font-weight: bold; }
+        .mode-btn { background: #457b9d; color: white; }
+        .snap-btn { background: #e63946; color: white; }
+        #gallery { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
+        .gallery-item { width: 100px; height: 100px; object-fit: cover; border: 2px solid #555; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="login-container"><button onclick="login()">Sign in with Google</button></div>
+    <div id="video-container">
+        <video id="video" autoplay playsinline></video>
+    </div>
     
-    <div id="app" style="display:none;">
-        <div id="video-container">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="overlay"></canvas>
-        </div>
-        <div class="controls">
-            <button id="snap">SNAP FACE ONLY</button>
-        </div>
-        <div id="gallery"></div>
+    <div class="controls">
+        <button id="snap-btn" class="snap-btn">CAPTURE</button>
+        <button id="mode-btn" class="mode-btn" onclick="toggleMode()">MODE: MANUAL</button>
     </div>
 
+    <div id="gallery"></div>
+    <canvas id="hidden-canvas" style="display:none;"></canvas>
+
     <script>
-        // --- Setup ---
         const video = document.getElementById('video');
-        const overlay = document.getElementById('overlay');
-        let currentDetection = null;
+        const canvas = document.getElementById('hidden-canvas');
+        const modeBtn = document.getElementById('mode-btn');
+        let autoFaceMode = false;
+        let lastFace = null;
 
-        // Initialize AI
-        async function initAI() {
-            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-        }
+        // Initialize Face Detector
+        const faceDetector = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
+        faceDetector.setOptions({ model: 'short' });
+        faceDetector.onResults(results => lastFace = results.detections[0] || null);
 
-        async function initCamera() {
+        async function init() {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
-            
-            video.onloadedmetadata = () => {
-                overlay.width = video.videoWidth;
-                overlay.height = video.videoHeight;
-                detectFaces();
-            };
+            // Continuous loop to track face
+            const camera = new MediaStreamTrackProcessor({track: stream.getVideoTracks()[0]});
+            requestAnimationFrame(async function detect() {
+                await faceDetector.send({image: video});
+                requestAnimationFrame(detect);
+            });
+        }
+        init();
+
+        function toggleMode() {
+            autoFaceMode = !autoFaceMode;
+            modeBtn.innerText = autoFaceMode ? "MODE: AUTO-FACE" : "MODE: MANUAL";
         }
 
-        async function detectFaces() {
-            const displaySize = { width: video.videoWidth, height: video.videoHeight };
-            setInterval(async () => {
-                const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions());
-                const ctx = overlay.getContext('2d');
-                ctx.clearRect(0, 0, overlay.width, overlay.height);
-                
-                if (detection) {
-                    currentDetection = detection.box;
-                    ctx.strokeStyle = '#00FF00';
-                    ctx.lineWidth = 5;
-                    ctx.strokeRect(currentDetection.x, currentDetection.y, currentDetection.width, currentDetection.height);
-                }
-            }, 100);
-        }
+        document.getElementById('snap-btn').addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
 
-        // --- Snap Logic ---
-        document.getElementById('snap').addEventListener('click', () => {
-            if (!currentDetection) return alert("No face detected!");
-
-            const canvas = document.createElement('canvas');
-            canvas.width = currentDetection.width;
-            canvas.height = currentDetection.height;
-            
-            // Crop specifically to the detected face box
-            canvas.getContext('2d').drawImage(video, 
-                currentDetection.x, currentDetection.y, currentDetection.width, currentDetection.height, 
-                0, 0, currentDetection.width, currentDetection.height
-            );
+            if (autoFaceMode && lastFace) {
+                const b = lastFace.boundingBox;
+                const size = Math.max(b.width, b.height) * canvas.width;
+                ctx.drawImage(video, b.xMin * canvas.width, b.yMin * canvas.height, size, size, 0, 0, 600, 600);
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
 
             const img = document.createElement('img');
             img.src = canvas.toDataURL('image/png');
             img.className = 'gallery-item';
+            img.onclick = () => { const a = document.createElement('a'); a.href = img.src; a.download = 'capture.png'; a.click(); };
             document.getElementById('gallery').prepend(img);
         });
-
-        // Firebase stuff...
-        const firebaseConfig = { /* YOUR CONFIG HERE */ };
-        firebase.initializeApp(firebaseConfig);
-        firebase.auth().onAuthStateChanged(user => { if(user) { document.getElementById('login-container').style.display='none'; document.getElementById('app').style.display='block'; initAI().then(initCamera); } });
-        function login() { firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
     </script>
 </body>
 </html>

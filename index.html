@@ -3,9 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>Pro Camera: Smart Face Snap</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+  import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAkaCtuRL8KTPxZMhXytlQydWswKJu_cjo",
+    authDomain: "cameraapp-d9059.firebaseapp.com",
+    projectId: "cameraapp-d9059",
+    storageBucket: "cameraapp-d9059.firebasestorage.app",
+    messagingSenderId: "262503093138",
+    appId: "1:262503093138:web:bdd21d41c64724c085674b",
+    measurementId: "G-JNFYLDES0F"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  // Export these to the global window so your other functions can see them
+  window.auth = auth;
+  window.firebase = { auth: () => auth }; // Helper for your existing functions
+</script>
 
     <style>
         body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }

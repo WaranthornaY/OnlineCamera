@@ -2,124 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Camera App</title>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
-
+    <title>Pro Camera (Privacy-First)</title>
     <style>
-        body { margin: 0; padding: 20px; font-family: sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; }
-        #video-container { width: 100%; max-width: 800px; }
-        video { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 4px solid #444; border-radius: 12px; background: #000; }
-        .controls { margin: 20px 0; display: flex; gap: 20px; align-items: center; }
-        button { padding: 12px 24px; cursor: pointer; background: #e63946; color: white; border: none; border-radius: 50px; font-weight: bold; }
-        #gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; margin-top: 20px; }
-        .gallery-item { width: 120px; height: 90px; object-fit: cover; border: 2px solid #555; cursor: pointer; border-radius: 4px; }
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
-        #modal img { max-width: 90%; max-height: 70%; border: 4px solid white; }
+        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        video { width: 100%; max-width: 800px; border: 4px solid #444; border-radius: 12px; }
+        .controls { margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="login-container">
-        <h1>Welcome to Pro Camera</h1>
-        <button onclick="loginWithGoogle()">Sign in with Google</button>
-    </div>
-
-    <div id="app" style="display:none;">
-        <div id="video-container"><video id="video" autoplay playsinline></video></div>
-        <div class="controls">
-            <button id="snap">CAPTURE</button>
-            <label>Brightness: <input type="range" id="brightness" min="50" max="150" value="100"></label>
-            <button onclick="auth.signOut()">Logout</button>
-        </div>
-        <h3>Your Gallery</h3>
-        <div id="gallery"></div>
-    </div>
-
-    <div id="modal">
-        <img id="modal-img" src="" alt="View">
-        <button onclick="downloadImage()">Download with Credit</button>
-        <button onclick="document.getElementById('modal').style.display='none'">Close</button>
+    <h1>Live Camera</h1>
+    <video id="video" autoplay playsinline></video>
+    
+    <div class="controls">
+        <label>Brightness: <input type="range" id="brightness" min="50" max="150" value="100"></label>
     </div>
 
     <script>
-        const firebaseConfig = { /* PASTE YOUR CONFIG HERE */ };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const storage = firebase.storage();
-
-        const video = document.getElementById('video'), gallery = document.getElementById('gallery');
+        const video = document.getElementById('video');
         const brightness = document.getElementById('brightness');
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('login-container').style.display = 'none';
-                document.getElementById('app').style.display = 'block';
-                initCamera();
-                loadUserPhotos(user.uid);
-            } else {
-                location.reload();
-            }
-        });
-
-        function loginWithGoogle() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-
         async function initCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } } });
-            video.srcObject = stream;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Camera access denied:", err);
+            }
         }
 
         brightness.oninput = () => video.style.filter = `brightness(${brightness.value}%)`;
-
-        document.getElementById('snap').onclick = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 1920; canvas.height = 1080;
-            canvas.getContext('2d').filter = video.style.filter;
-            canvas.getContext('2d').drawImage(video, 0, 0, 1920, 1080);
-            
-            const dataUrl = canvas.toDataURL('image/png');
-            const uid = auth.currentUser.uid;
-            const ref = storage.ref(`photos/${uid}/${Date.now()}.png`);
-            
-            ref.putString(dataUrl, 'data_url').then(() => {
-                addPhotoToGallery(dataUrl);
-            });
-        };
-
-        function loadUserPhotos(uid) {
-            storage.ref(`photos/${uid}/`).listAll().then(res => {
-                res.items.forEach(item => {
-                    item.getDownloadURL().then(url => addPhotoToGallery(url));
-                });
-            });
-        }
-
-        function addPhotoToGallery(url) {
-            const img = document.createElement('img');
-            img.src = url; img.className = 'gallery-item';
-            img.onclick = () => { document.getElementById('modal-img').src = url; document.getElementById('modal').style.display = 'flex'; };
-            gallery.prepend(img);
-        }
-
-        function downloadImage() {
-            const imgObj = new Image();
-            imgObj.crossOrigin = "anonymous";
-            imgObj.src = document.getElementById('modal-img').src;
-            imgObj.onload = () => {
-                const c = document.createElement('canvas');
-                c.width = 1920; c.height = 1080;
-                const ctx = c.getContext('2d');
-                ctx.drawImage(imgObj, 0, 0);
-                ctx.fillStyle = "white"; ctx.font = "40px Arial";
-                ctx.fillText("https://waranthornay.github.io/OnlineCamera/", 1920 - 900, 1080 - 30);
-                const a = document.createElement('a');
-                a.href = c.toDataURL('image/png');
-                a.download = 'photo.png'; a.click();
-            };
-        }
+        
+        initCamera();
     </script>
 </body>
 </html>

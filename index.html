@@ -2,38 +2,72 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pro Camera (Privacy-First)</title>
+    <title>Secure Live Camera</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
     <style>
-        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        video { width: 100%; max-width: 800px; border: 4px solid #444; border-radius: 12px; }
-        .controls { margin-top: 20px; }
+        body { background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }
+        #app { display: none; width: 100%; max-width: 800px; text-align: center; }
+        video { width: 100%; border: 4px solid #444; border-radius: 12px; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #4285f4; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>Live Camera</h1>
-    <video id="video" autoplay playsinline></video>
-    
-    <div class="controls">
-        <label>Brightness: <input type="range" id="brightness" min="50" max="150" value="100"></label>
+    <div id="login-container">
+        <h1>Private Camera Access</h1>
+        <button onclick="loginWithGoogle()">Sign in with Google</button>
+    </div>
+
+    <div id="app">
+        <h1>Live Feed</h1>
+        <video id="video" autoplay playsinline></video>
+        <br><br>
+        <button onclick="firebase.auth().signOut()">Logout</button>
     </div>
 
     <script>
+        // REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkaCtuRL8KTPxZMhXytlQydWswKJu_cjo",
+            authDomain: "cameraapp-d9059.firebaseapp.com",
+            projectId: "cameraapp-d9059",
+            storageBucket: "cameraapp-d9059.firebasestorage.app",
+            messagingSenderId: "262503093138",
+            appId: "1:262503093138:web:bdd21d41c64724c085674b"
+        };
+        firebase.initializeApp(firebaseConfig);
+
         const video = document.getElementById('video');
-        const brightness = document.getElementById('brightness');
+
+        // Check if user is logged in
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                // LOGGED IN: Show app, start camera
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                initCamera();
+            } else {
+                // LOGGED OUT: Show login, hide app
+                document.getElementById('login-container').style.display = 'block';
+                document.getElementById('app').style.display = 'none';
+            }
+        });
+
+        function loginWithGoogle() {
+            firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        }
 
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
             } catch (err) {
-                console.error("Camera access denied:", err);
+                alert("Camera access denied or not available.");
             }
         }
-
-        brightness.oninput = () => video.style.filter = `brightness(${brightness.value}%)`;
-        
-        initCamera();
     </script>
 </body>
 </html>

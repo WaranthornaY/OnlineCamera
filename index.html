@@ -1,83 +1,238 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <title>Pro Auto-Face Camera</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Pro Camera App</title>
+
+    
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
+
+
+
     <style>
-        body { margin: 0; padding: 20px; font-family: sans-serif; background-color: #121212; color: white; display: flex; flex-direction: column; align-items: center; }
-        #video-container { position: relative; width: 100%; max-width: 600px; }
-        video, #output-canvas { width: 100%; border-radius: 12px; border: 4px solid #333; }
-        .controls { margin: 20px 0; display: flex; gap: 10px; }
-        button { padding: 15px 25px; cursor: pointer; border: none; border-radius: 50px; font-weight: bold; }
-        .mode-btn { background: #457b9d; color: white; }
-        .snap-btn { background: #e63946; color: white; }
-        #gallery { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
-        .gallery-item { width: 100px; height: 100px; object-fit: cover; border: 2px solid #555; cursor: pointer; }
+
+        body { margin: 0; padding: 20px; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; color: white; }
+
+        #video-container { width: 100%; max-width: 800px; }
+
+        video { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 4px solid #444; border-radius: 12px; background: #000; }
+
+        .controls { margin: 20px 0; display: flex; gap: 20px; align-items: center; }
+
+        button { padding: 12px 24px; cursor: pointer; background: #e63946; color: white; border: none; border-radius: 50px; font-weight: bold; }
+
+        #gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; margin-top: 20px; }
+
+        .gallery-item { width: 120px; height: 90px; object-fit: cover; border: 2px solid #555; cursor: pointer; border-radius: 4px; }
+
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
+
+        #modal img { max-width: 90%; max-height: 70%; border: 4px solid white; }
+
+        .modal-btn { margin-top: 20px; background: #457b9d; }
+
     </style>
+
 </head>
+
 <body>
 
-    <div id="video-container">
-        <video id="video" autoplay playsinline></video>
-    </div>
-    
-    <div class="controls">
-        <button id="snap-btn" class="snap-btn">CAPTURE</button>
-        <button id="mode-btn" class="mode-btn" onclick="toggleMode()">MODE: MANUAL</button>
+
+
+    <div id="login-container">
+
+        <h1>Welcome to Pro Camera</h1>
+
+        <button onclick="loginWithGoogle()">Sign in with Google to Access</button>
+
     </div>
 
-    <div id="gallery"></div>
-    <canvas id="hidden-canvas" style="display:none;"></canvas>
+
+
+    <div id="app" style="display:none;">
+
+        <div id="video-container">
+
+            <video id="video" autoplay playsinline></video>
+
+        </div>
+
+        <div class="controls">
+
+            <button id="snap">CAPTURE</button>
+
+            <label>Brightness: <input type="range" id="brightness" min="50" max="150" value="100"></label>
+
+        </div>
+
+        <canvas id="canvas" width="1920" height="1080" style="display:none;"></canvas>
+
+        <h3>Gallery</h3>
+
+        <div id="gallery"></div>
+
+    </div>
+
+
+
+    <div id="modal">
+
+        <img id="modal-img" src="" alt="View">
+
+        <button class="modal-btn" onclick="downloadImage()">Download with Credit</button>
+
+        <button class="modal-btn" style="background:#666" onclick="document.getElementById('modal').style.display='none'">Close</button>
+
+    </div>
+
+
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('hidden-canvas');
-        const modeBtn = document.getElementById('mode-btn');
-        let autoFaceMode = false;
-        let lastFace = null;
 
-        // Initialize Face Detector
-        const faceDetector = new FaceDetection({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
-        faceDetector.setOptions({ model: 'short' });
-        faceDetector.onResults(results => lastFace = results.detections[0] || null);
+        // Firebase Config
 
-        async function init() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
-            // Continuous loop to track face
-            const camera = new MediaStreamTrackProcessor({track: stream.getVideoTracks()[0]});
-            requestAnimationFrame(async function detect() {
-                await faceDetector.send({image: video});
-                requestAnimationFrame(detect);
-            });
-        }
-        init();
+        const firebaseConfig = {
 
-        function toggleMode() {
-            autoFaceMode = !autoFaceMode;
-            modeBtn.innerText = autoFaceMode ? "MODE: AUTO-FACE" : "MODE: MANUAL";
-        }
+            apiKey: "AIzaSyAkaCtuRL8KTPxZMhXytlQydWswKJu_cjo",
 
-        document.getElementById('snap-btn').addEventListener('click', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
+            authDomain: "cameraapp-d9059.firebaseapp.com",
 
-            if (autoFaceMode && lastFace) {
-                const b = lastFace.boundingBox;
-                const size = Math.max(b.width, b.height) * canvas.width;
-                ctx.drawImage(video, b.xMin * canvas.width, b.yMin * canvas.height, size, size, 0, 0, 600, 600);
-            } else {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            projectId: "cameraapp-d9059",
+
+            storageBucket: "cameraapp-d9059.firebasestorage.app",
+
+            messagingSenderId: "262503093138",
+
+            appId: "1:262503093138:web:bdd21d41c64724c085674b",
+
+            measurementId: "G-JNFYLDES0F"
+
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        const auth = firebase.auth();
+
+
+
+        // UI Logic
+
+        const video = document.getElementById('video'), canvas = document.getElementById('canvas');
+
+        const snap = document.getElementById('snap'), gallery = document.getElementById('gallery');
+
+        const modal = document.getElementById('modal'), modalImg = document.getElementById('modal-img');
+
+        const brightness = document.getElementById('brightness');
+
+
+
+        auth.onAuthStateChanged(user => {
+
+            if (user) {
+
+                document.getElementById('login-container').style.display = 'none';
+
+                document.getElementById('app').style.display = 'block';
+
+                initCamera();
+
             }
 
-            const img = document.createElement('img');
-            img.src = canvas.toDataURL('image/png');
-            img.className = 'gallery-item';
-            img.onclick = () => { const a = document.createElement('a'); a.href = img.src; a.download = 'capture.png'; a.click(); };
-            document.getElementById('gallery').prepend(img);
         });
+
+
+
+        function loginWithGoogle() {
+
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+
+        }
+
+
+
+        async function initCamera() {
+
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } } });
+
+            video.srcObject = stream;
+
+        }
+
+
+
+        brightness.oninput = () => video.style.filter = `brightness(${brightness.value}%)`;
+
+
+
+        snap.addEventListener('click', () => {
+
+            const ctx = canvas.getContext('2d');
+
+            ctx.filter = video.style.filter;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const img = document.createElement('img');
+
+            img.src = canvas.toDataURL('image/png');
+
+            img.className = 'gallery-item';
+
+            img.onclick = () => { modalImg.src = img.src; modal.style.display = 'flex'; };
+
+            gallery.prepend(img);
+
+        });
+
+
+
+        function downloadImage() {
+
+            const tempCanvas = document.createElement('canvas');
+
+            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+
+            const ctx = tempCanvas.getContext('2d');
+
+            const imgObj = new Image();
+
+            imgObj.src = modalImg.src;
+
+            imgObj.onload = () => {
+
+                ctx.drawImage(imgObj, 0, 0);
+
+                ctx.fillStyle = "white"; ctx.font = "40px Arial"; ctx.textAlign = "right";
+
+                ctx.fillText("https://waranthornay.github.io/OnlineCamera/", tempCanvas.width - 20, tempCanvas.height - 30);
+
+                const link = document.createElement('a');
+
+                link.download = 'photo-credit.png';
+
+                link.href = tempCanvas.toDataURL('image/png');
+
+                link.click();
+
+            };
+
+        }
+
     </script>
+
 </body>
-</html>
+
+</html> 
+
